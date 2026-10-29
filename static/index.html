@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f9fd" />
+  <meta name="description" content="GestureLab: nhận dạng sáu cử chỉ từ cảm biến gia tốc X/Y/Z bằng mô hình TF-C đã huấn luyện." />
+  <title>GestureLab | TF-C Gesture Recognition</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <div class="site-wrap">
+    <header class="site-header">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 33h7m5-12v25m9-35v45m9-29v13m9-25v38m9-22h6" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <div class="brand-overline">GESTURELAB <span class="brand-split">/</span> AI RESEARCH DEMO</div>
+        <h1>AI-Powered <span>Gesture Recognition</span></h1>
+        <p>Nhận dạng cử chỉ từ tín hiệu gia tốc 3 trục · <strong>Time-Frequency Consistency (TF-C)</strong></p>
+      </div>
+      <div id="modelPill" class="connection-pill" role="status"><span class="status-dot" id="modelDot"></span><span id="modelStatus">Đang kết nối...</span></div>
+    </header>
+
+    <main>
+      <div class="workflow-heading">
+        <span>THỬ NGHIỆM MÔ HÌNH</span>
+        <p>Chọn dữ liệu → xem tín hiệu → chạy dự đoán bằng TF-C</p>
+      </div>
+
+      <div class="three-columns">
+        <!-- STEP 1: INPUT -->
+        <section class="step-panel input-panel" aria-labelledby="inputTitle">
+          <div class="panel-title"><span class="step-id">01</span><div><h2 id="inputTitle">Input data</h2><p>Dữ liệu cảm biến đầu vào</p></div></div>
+          <div class="source-switch" role="group" aria-label="Nguồn dữ liệu">
+            <button id="sourceExample" class="selected" type="button" aria-pressed="true">Mẫu SGR</button>
+            <button id="sourceUpload" type="button" aria-pressed="false">Tải file</button>
+          </div>
+
+          <div id="exampleOptions" class="source-content">
+            <div class="sample-note"><span class="dot"></span>Dữ liệu SGR test đã chuẩn hóa, có nhãn đối chiếu.</div>
+            <label class="field-label" for="sampleSelect">Chọn mẫu cử chỉ</label>
+            <select id="sampleSelect" class="form-control"><option value="0">Đang tải mẫu...</option></select>
+            <div class="sample-illustration" aria-hidden="true">
+              <div class="sample-wave">
+                <svg viewBox="0 0 280 75" preserveAspectRatio="none" fill="none"><path d="M0 39h27l12-12 13 24 14-34 17 42 11-19h21l10-11 13 20 14-29 15 35 15-21h32l12-8 13 19 13-13h22" stroke="#6667e5" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M0 39h280" stroke="#dfe3f7" stroke-dasharray="4 5"/></svg>
+              </div>
+              <span>Chọn mẫu để xem trực tiếp dữ liệu thời gian &amp; tần số</span>
+            </div>
+          </div>
+
+          <div id="uploadOptions" class="source-content" hidden>
+            <label class="file-drop" id="dropZone" for="uploadFile">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <strong>Kéo thả tệp vào đây</strong>
+              <span>hoặc nhấn để chọn từ máy</span>
+              <small>CSV · NPZ · ZIP Sensor Logger (tối đa 20 MB)</small>
+            </label>
+            <input type="file" id="uploadFile" accept=".csv,.npz,.zip" hidden />
+            <div id="fileName" class="file-name" hidden></div>
+            <label class="field-label">Dữ liệu đã chuẩn hóa?</label>
+            <div class="radio-list">
+              <label><input name="normalization" type="radio" value="raw" checked /> Chưa — chuẩn hóa theo SGR</label>
+              <label><input name="normalization" type="radio" value="normalized" /> Đã chuẩn hóa</label>
+            </div>
+            <label class="field-label" for="stride">Bước trượt cửa sổ (CSV/ZIP)</label>
+            <div class="stride-control"><input type="number" id="stride" value="100" min="1" max="206" /><span>điểm</span></div>
+          </div>
+
+          <div class="input-summary">
+            <div><span>Điểm đo</span><strong id="pointCount">—</strong></div>
+            <div><span>Cửa sổ</span><strong id="windowCount">—</strong></div>
+            <div><span>Trục</span><strong>X · Y · Z</strong></div>
+          </div>
+          <details class="preprocess-details"><summary>Thông tin tiền xử lý <span>+</span></summary><div id="detailBody">Chưa có dữ liệu.</div></details>
+          <div id="oodWarning" class="ood-warning" hidden><strong>Lưu ý dữ liệu ngoài miền</strong><p>TF-C được fine-tune cho 6 cử chỉ smartwatch SGR; dữ liệu điện thoại/HAR có thể cho dự đoán không đáng tin cậy.</p></div>
+          <div id="inlineError" class="inline-error" role="alert" hidden></div>
+        </section>
+
+        <!-- STEP 2: SIGNAL PREVIEW -->
+        <section class="step-panel preview-panel" aria-labelledby="previewTitle">
+          <div class="panel-title"><span class="step-id">02</span><div><h2 id="previewTitle">Preview</h2><p>Biểu diễn tín hiệu thời gian – tần số</p></div></div>
+          <div class="window-picker"><label for="windowSelect">Cửa sổ đang xem</label><select id="windowSelect" class="form-control"><option value="0">Chưa có dữ liệu</option></select></div>
+
+          <div class="plot-card">
+            <div class="plot-heading"><h3>Time domain</h3><span>X/Y/Z acceleration</span></div>
+            <canvas id="signalChart" role="img" aria-label="Biểu đồ tín hiệu gia tốc ba trục X Y Z"></canvas>
+            <div class="axis-legend"><span><i class="axis-x"></i>X</span><span><i class="axis-y"></i>Y</span><span><i class="axis-z"></i>Z</span></div>
+          </div>
+          <div class="plot-card spectrum-card">
+            <div class="plot-heading"><h3>Frequency domain</h3><span>FFT magnitude · |a|</span></div>
+            <canvas id="spectrumChart" role="img" aria-label="Phổ FFT của độ lớn gia tốc"></canvas>
+            <div id="spectrumUnits" class="spectrum-units">Tần số theo chu kỳ/mẫu</div>
+          </div>
+          <div class="compact-stats">
+            <div><span>Std</span><strong id="statStd">—</strong></div>
+            <div><span>Peak</span><strong id="statPeak">—</strong></div>
+            <div><span>RMS</span><strong id="statRms">—</strong></div>
+          </div>
+          <p class="signal-insight" id="signalComment">Chọn mẫu hoặc tải file để xem tín hiệu và thống kê.</p>
+          <button id="predictButton" class="predict-button" type="button"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 12 7-12 7V5Z"/></svg><span id="predictButtonText">Run TF-C Prediction</span></button>
+        </section>
+
+        <!-- STEP 3: INFERENCE -->
+        <section class="step-panel result-panel" aria-labelledby="resultTitle">
+          <div class="panel-title"><span class="step-id">03</span><div><h2 id="resultTitle">Prediction result</h2><p>Kết quả suy luận từ mô hình TF-C</p></div></div>
+          <div class="prediction-box">
+            <span class="mini-heading">PREDICTED GESTURE</span>
+            <div id="finalPrediction" class="prediction-name" aria-live="polite">Chưa dự đoán</div>
+            <p id="finalDescription">Nhấn Run TF-C Prediction để chạy mô hình trên dữ liệu đã chọn.</p>
+          </div>
+          <div class="confidence-box">
+            <div class="box-heading"><strong>Softmax score</strong><span id="mainConfidence">—</span></div>
+            <div class="score-track"><div id="confidenceFill" class="score-fill"></div></div>
+            <p>Điểm Softmax cao nhất, chưa phải xác suất đúng đã hiệu chuẩn.</p>
+          </div>
+          <div class="class-box">
+            <div class="box-heading"><strong>Class scores</strong><span>6 gestures</span></div>
+            <div id="probabilityBars" class="prob-bars"><div class="no-results">Điểm cho từng cử chỉ sẽ xuất hiện sau khi chạy TF-C.</div></div>
+          </div>
+          <div class="result-status" id="resultStatus" role="status"><span id="resultStatusIcon" class="result-status-icon">○</span><div><strong id="resultStatusTitle">Sẵn sàng phân tích</strong><p id="resultStatusText">Hãy chọn dữ liệu rồi chạy dự đoán.</p></div></div>
+          <div class="truth-row"><span>Nhãn thực tế (nếu có)</span><strong id="trueLabel">—</strong></div>
+          <div id="matchBanner" class="match-banner" hidden></div>
+          <button id="downloadCsv" class="download-button" type="button" disabled>Tải kết quả dự đoán (.csv)</button>
+        </section>
+      </div>
+
+      <section class="bottom-notes" aria-label="Thông tin bổ sung">
+        <div><strong>Về mô hình</strong><span>TF-C gốc · 2 encoder thời gian/tần số · HAR pre-train → SGR fine-tune · 6 cử chỉ. Không dùng DINOv3 trong bản deploy này.</span></div>
+        <div><strong>Định dạng dữ liệu</strong><span>CSV với x/y/z, NPZ [N, 3, 206], hoặc ZIP Sensor Logger. Dữ liệu mới cần tối thiểu 206 điểm mỗi cửa sổ.</span></div>
+        <a href="/static/example.csv" download>Tải CSV ví dụ <span aria-hidden="true">↗</span></a>
+      </section>
+    </main>
+    <footer class="site-footer"><span>GestureLab · Academic research demonstration</span><span>Mô hình thật chạy qua FastAPI + PyTorch · Không sử dụng Streamlit</span></footer>
+  </div>
+</body>
+</html>
